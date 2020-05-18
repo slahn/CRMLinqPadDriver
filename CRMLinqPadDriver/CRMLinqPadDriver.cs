@@ -64,9 +64,15 @@ namespace Microsoft.Pfe.Xrm
         /// <param name="cxInfo">IConnectionInfo</param>
         /// <param name="isNewConnection">Indicate if this is new connection request or update existing connection</param>
         /// <returns>result</returns>
+        [Obsolete]
         public override bool ShowConnectionDialog(IConnectionInfo cxInfo, bool isNewConnection)
         {
-            return new MainWindow(cxInfo, isNewConnection).ShowDialog() == true;
+            return new MainWindow(cxInfo, true).ShowDialog() == true;
+        }
+
+        public override bool ShowConnectionDialog(IConnectionInfo cxInfo, ConnectionDialogOptions dialogOptions)
+        {
+            return new MainWindow(cxInfo, dialogOptions.IsNewConnection || dialogOptions.IsClonedConnection).ShowDialog() == true;
         }
 
         /// <summary>
