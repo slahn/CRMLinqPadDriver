@@ -98,6 +98,9 @@ namespace Microsoft.Pfe.Xrm.ViewModel
         /// </summary>
         public MainWindowViewModel(IConnectionInfo cxInfo, bool isNewConnection)
         {
+            // If debugging plugin
+            // Debugger.Launch();
+
             // Display message depending on isNewConnection
             Message = isNewConnection ? "Click Login button to Login." : "Click Reload Data to update Schema";
 
@@ -172,6 +175,13 @@ namespace Microsoft.Pfe.Xrm.ViewModel
             var svcUtilCodeCustomizationParams = "";
             var generatedNameSpace = "Microsoft.Pfe.Xrm";
             var authProviderType = "";
+
+            var outputFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Gen."+ generationType + ".cs");
+            if(File.Exists(outputFile))
+            {
+                File.Delete(outputFile);
+            }
+
             switch (props.AuthenticationProviderType)
             {
                 case AuthenticationProviderType.OnlineFederation:
@@ -209,18 +219,18 @@ namespace Microsoft.Pfe.Xrm.ViewModel
             // Assign argumemnt for CrmSvcUtil. This format works for all environment.
             if (props.UserName != string.Empty)
             {
-                p.StartInfo.Arguments =
-                    String.Format(
-                        "{4} /connectionstring:\"AuthType={5}; Url={0}{7}; UserName={1}; Password={2}; Domain={8}\"; /out:\"{3}\" /namespace:{6} /serviceContextName:XrmContext",
-                        props.OrgUri,
-                        props.UserName,
-                        props.Password,
-                        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, generationType+".cs"),
-                        svcUtilCodeCustomizationParams,
-                        authProviderType,
-                        generatedNameSpace,
-                        props.ConnectedOrgUniqueName,
-                        props.DomainName);
+                // For IFD "internal" URLs, we have to append the unique org-name.
+                // But not for IFD "external" URLs, or AD urls.
+                var orgUri = props.OrgUri;
+                if(!orgUri.EndsWith(props.ConnectedOrgUniqueName))
+                {
+                    orgUri = orgUri.TrimEnd('/') + $"/{props.ConnectedOrgUniqueName}";
+                }
+
+                var connStringWithPassword = $"Url={orgUri}; Domain={props.DomainName}; UserName={props.UserName}; Password={props.Password};AuthType={authProviderType}; ";
+
+                var args = $"{svcUtilCodeCustomizationParams} /connectionstring:\"{connStringWithPassword}\"; /out:\"{outputFile}\" /namespace:{generatedNameSpace} /serviceContextName:XrmContext";
+                p.StartInfo.Arguments = args;
             }
             else
             {
@@ -228,7 +238,7 @@ namespace Microsoft.Pfe.Xrm.ViewModel
                     String.Format(
                         "{2} /connectionstring:\"Url={0}; AuthType=AD;\" /out:\"{1}\" /namespace:{3} /serviceContextName:XrmContext",
                         props.OrgUriActual,
-                        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, generationType + ".cs"),
+                        outputFile,
                         svcUtilCodeCustomizationParams,
                         generatedNameSpace);
             }
@@ -237,7 +247,7 @@ namespace Microsoft.Pfe.Xrm.ViewModel
             p.Start();
             p.WaitForExit();
             // Read generate file and return it.
-            return System.IO.File.ReadAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, generationType + ".cs"));
+            return System.IO.File.ReadAllText(outputFile);
         }
 
         /// <summary>
